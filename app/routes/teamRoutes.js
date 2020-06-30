@@ -1,13 +1,23 @@
 const express = require('express')
-const router = express.Router()
+const passport = require('passport')
 
 const Team = require('./../models/teams')
+const customErrors = require('../../lib/custom_errors')
+const handle404 = customErrors.handle404
+const requireOwnership = customErrors.requireOwnership
+const removeBlanks = require('../../lib/remove_blank_fields')
+const requireToken = passport.authenticate('bearer', {session: false})
+
+const router = express.Router()
 
 // CREATE
-router.post('/teams', (req, res, next) => {
+router.post('/teams', requireToken, (req, res, next) => {
+  req.body.team.owner = req.user.id
   const teamData = req.body.team
   Team.create(teamData)
-    .then(team => res.status(201).json({team: team}))
+    .then(team => {
+      res.status(201).json({ team: team.toObject() })
+    })
     .catch(next)
 })
 
