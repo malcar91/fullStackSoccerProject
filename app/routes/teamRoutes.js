@@ -22,33 +22,46 @@ router.post('/teams', requireToken, (req, res, next) => {
 })
 
 // INDEX
-router.get('/teams', (req, res, next) => {
+router.get('/teams', requireToken, (req, res, next) => {
   Team.find()
-    .then(teams => res.json({teams: teams}))
+    .then(teams => {
+      return teams.map(example => example.toObject())
+    })
+    .then(teams => res.status(200).json({ teams: teams }))
     .catch(next)
 })
 
 // SHOW
-router.get('/teams/:id', (req, res, next) => {
+router.get('/teams/:id', requireToken, (req, res, next) => {
   Team.findById(req.params.id)
-    .then(team => res.json({team: team}))
+    .then(handle404)
+    .then(team => res.status(200).json({ team: team.toObject() }))
     .catch(next)
 })
 
 // UPDATE
-router.patch('/teams/:id', (req, res, next) => {
-  const teamData = req.body.team
-  const id = req.params.id
-  Team.findById(id)
-    .then(team => team.update(teamData))
-    .then(() => res.sendStatus(201))
+router.patch('/teams/:id', requireToken, removeBlanks, (req, res, next) => {
+  // const teamData = req.body.team
+  delete req.body.team.owner
+  // const id = req.params.id
+  Team.findById(req.params.id)
+    .then(handle404)
+    .then(team => {
+      requireOwnership(req, team)
+      return team.updateOne(req.body.team)
+    })
+    .then(() => res.sendStatus(204))
     .catch(next)
 })
 
 // DESTROY
-router.delete('/teams/:id', (req, res, next) => {
+router.delete('/teams/:id', requireToken, (req, res, next) => {
   Team.findById(req.params.id)
-    .then(team => team.remove())
+    .then(handle404)
+    .then(team => {
+      requireOwnership(req, team)
+      team.deleteOne()
+    })
     .then(() => res.sendStatus(204))
     .catch(next)
 })
